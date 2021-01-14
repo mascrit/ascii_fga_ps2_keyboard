@@ -41,7 +41,7 @@ begin
     end if;
   end process;
 
-  --debounce ps2 input signals
+  --debounce ps2 Señales de Entrada
   debounce_ps2_clk: debounce
     generic map(counter_size => debounce_counter_size)
     port map(clk => clk, button => sync_ffs(0), result => ps2_clk_int);
@@ -49,35 +49,46 @@ begin
     generic map(counter_size => debounce_counter_size)
     port map(clk => clk, button => sync_ffs(1), result => ps2_data_int);
 
-  --input ps2 data
+  --Entrada ps2 datos
   process(ps2_clk_int)
   begin
-    if(ps2_clk_int'event and ps2_clk_int = '0') then    --falling edge of ps2 clock
-      ps2_word <= ps2_data_int & ps2_word(10 downto 1);   --shift in ps2 data bit
+    if(ps2_clk_int'event and ps2_clk_int = '0') then    --falling edge de reloj
+                                                        --ps2
+      ps2_word <= ps2_data_int & ps2_word(10 downto 1);   --cambio en el bit de
+                                                          --datos de ps2
     end if;
   end process;
 
-  --verify that parity, start, and stop bits are all correct
+  --verifica que que los bits de paridad, inicio y parada sean correctos.
   error <= not (not ps2_word(0) and ps2_word(10) and (ps2_word(9) xor ps2_word(8) xor
                                                       ps2_word(7) xor ps2_word(6) xor ps2_word(5) xor ps2_word(4) xor ps2_word(3) xor
                                                       ps2_word(2) xor ps2_word(1)));
 
-  --determine if ps2 port is idle (i.e. last transaction is finished) and output result
+  --determinar si el puerto ps2 está inactivo (es decir, la última transacción
+  --finalizó) y generar el resultado
   process(clk)
   begin
     if(clk'event and clk = '1') then           --rising edge of system clock
 
-      if(ps2_clk_int = '0') then                 --low ps2 clock, ps/2 is active
+      if(ps2_clk_int = '0') then
         count_idle <= 0;                           --reset idle counter
-      elsif(count_idle /= clk_freq/18_000) then  --ps2 clock has been high less than a half clock period (<55us)
-        count_idle <= count_idle + 1;            --continue counting
+      elsif(count_idle /= clk_freq/18_000) then  --El l reloj de ps2 ha estado
+                                                 --alto en menos de medio
+                                                 --período de reloj (<55us)
+        count_idle <= count_idle + 1;            --sigue contando
       end if;
 
-      if(count_idle = clk_freq/18_000 and error = '0') then  --idle threshold reached and no errors detected
-        ps2_code_new <= '1';                                   --set flag that new ps/2 code is available
-        ps2_code <= ps2_word(8 downto 1);                      --output new ps/2 code
-      else                                                   --ps/2 port active or error detected
-        ps2_code_new <= '0';                                   --set flag that ps/2 transaction is in progress
+      if(count_idle = clk_freq/18_000 and error = '0') then  --umbral de
+                                                             --inactividad
+                                                             --alcanzado y no
+                                                             --se han detectado
+                                                             --errores
+        ps2_code_new <= '1';                    --establecer la bandera de que
+                                                --el nuevo código ps/2 está disponible
+        ps2_code <= ps2_word(8 downto 1);       --salida de nuevo código ps/2
+      else                                      --ps/2 puerto activo o error detectado
+        ps2_code_new <= '0';                    --bandera de que la transacción
+                                                --ps/2 está en curso
       end if;
 
     end if;

@@ -3,8 +3,8 @@ use ieee.std_logic_1164.all;
 
 entity keyboard is
   generic(
-    clk_freq                  : integer := 50_000_000; --system clock frequency in hz
-    ps2_debounce_counter_size : integer := 8);         --set such that 2^size/clk_freq = 5us (size = 8 for 50mhz)
+    clk_freq                  : integer := 50_000_000; --clock frequency in hz
+    ps2_debounce_counter_size : integer := 8);         --2 ^ size/clk_freq = 5us (tamaño = 8 para 50mhz)
   port(
     clk        : in  std_logic;                     --system clock input
     ps2_clk    : in  std_logic;                     --clock signal from ps2 keyboard
@@ -14,25 +14,36 @@ entity keyboard is
 end keyboard;
 
 architecture behavior of keyboard is
-  type machine is(ready, new_code, translate, output);              --needed states
-  signal state             : machine;                               --state machine
-  signal ps2_code_new      : std_logic;                             --new ps2 code flag from ps2_keyboard component
-  signal ps2_code          : std_logic_vector(7 downto 0);          --ps2 code input form ps2_keyboard component
-  signal prev_ps2_code_new : std_logic := '1';                      --value of ps2_code_new flag on previous clock
-  signal break             : std_logic := '0';                      --'1' for break code, '0' for make code
-  signal e0_code           : std_logic := '0';                      --'1' for multi-code commands, '0' for single code commands
-  signal caps_lock         : std_logic := '0';                      --'1' if caps lock is active, '0' if caps lock is inactive
-  signal control_r         : std_logic := '0';                      --'1' if right control key is held down, else '0'
-  signal control_l         : std_logic := '0';                      --'1' if left control key is held down, else '0'
-  signal shift_r           : std_logic := '0';                      --'1' if right shift is held down, else '0'
-  signal shift_l           : std_logic := '0';                      --'1' if left shift is held down, else '0'
-  signal ascii             : std_logic_vector(7 downto 0) := x"ff"; --internal value of ascii translation
+  type machine is(ready, new_code, traducir, output);              --estados necesarios
+  signal state             : machine;                               --máquina
+                                                                    --de estados
+  signal ps2_code_new      : std_logic;                             --nueva
+                                                                    --bandera de
+                                                                    --código
+                                                                    --ps2 del
+                                                                    --componente ps2_keyboard
+  signal ps2_code          : std_logic_vector(7 downto 0);          --ps2
+                                                                    --formulario de
+                                                                    --entrada de
+                                                                    --código componente ps2_keyboard
+  signal prev_ps2_code_new : std_logic := '1';                      --valor de
+                                                                    --la
+                                                                    --bandera
+                                                                    --ps2_code_newenel reloj anterior
+  signal break             : std_logic := '0';                      --'1' para código de interrupción, '0' para código de marca
+  signal e0_code           : std_logic := '0';                      --'1' para comandos de código múltiple, '0' para comandos de código único
+  signal caps_lock         : std_logic := '0';                      --'1' si el bloqueo de mayúsculas está activo, '0' si el bloqueo de mayúsculas está inactivo
+  signal control_r         : std_logic := '0';                      --'1' si se mantiene presionada la tecla de control derecha, de lo contrario '0'
+  signal control_l         : std_logic := '0';                      --'1' si se mantiene presionada la tecla de control izquierda, de lo contrario '0'
+  signal shift_r           : std_logic := '0';                      --'1' si se mantiene presionada la tecla de desplazamiento a la derecha, en caso contrario '0'
+  signal shift_l           : std_logic := '0';                      --'1' si se mantiene presionada la tecla de desplazamiento a la izquierda, en caso contrario '0'
+  signal ascii             : std_logic_vector(7 downto 0) := x"ff"; --valor interno de la traducción ascii
   signal dis7					: std_logic_vector(6 to 0);
   
-  --declare ps2 keyboard interface component
+  --declarar componente de interfaz de teclado ps2
   component ps2_keyboard is
     generic(
-      clk_freq              : integer;  --system clock frequency in hz
+      clk_freq              : integer;  --
       debounce_counter_size : integer); --set such that 2^size/clk_freq = 5us (size = 8 for 50mhz)
     port(
       clk          : in  std_logic;                     --system clock
@@ -44,7 +55,7 @@ architecture behavior of keyboard is
 
 begin
 
-  --instantiate ps2 keyboard interface logic
+  --instanciar la lógica de la interfaz del teclado ps2
   ps2_keyboard_0:  ps2_keyboard
     generic map(clk_freq => clk_freq, debounce_counter_size => ps2_debounce_counter_size)
     port map(clk => clk, ps2_clk => ps2_clk, ps2_data => ps2_data, ps2_code_new => ps2_code_new, ps2_code => ps2_code);
@@ -52,56 +63,56 @@ begin
   process(clk)
   begin
     if(clk'event and clk = '1') then
-      prev_ps2_code_new <= ps2_code_new; --keep track of previous ps2_code_new values to determine low-to-high transitions
+      prev_ps2_code_new <= ps2_code_new; --realizar un seguimiento de los valores ps2_code_new anteriores para determinar las transiciones de menor a mayor
       case state is
 
-        --ready state: wait for a new ps2 code to be received
+        --estado listo: espere a que se reciba un nuevo código ps2
         when ready =>
-          if(prev_ps2_code_new = '0' and ps2_code_new = '1') then --new ps2 code received
-            ascii_new <= '0';                                       --reset new ascii code indicator
-            state <= new_code;                                      --proceed to new_code state
-          else                                                    --no new ps2 code received yet
-            state <= ready;                                         --remain in ready state
+          if(prev_ps2_code_new = '0' and ps2_code_new = '1') then --nuevo código ps2 recibido
+            ascii_new <= '0';                                     --restablecer nuevo indicador de código ascii
+            state <= new_code;                                    --pasar al estado new_code
+          else                                                    --aún no se ha recibido un nuevo código ps2
+            state <= ready;                                       --permanecer en estado ready
           end if;
 
-        --new_code state: determine what to do with the new ps2 code
+        --estado de new_code: determina qué hacer con el nuevo código de ps2
         when new_code =>
-          if(ps2_code = x"f0") then    --code indicates that next command is break
-            break <= '1';                --set break flag
-            state <= ready;              --return to ready state to await next ps2 code
-          elsif(ps2_code = x"e0") then --code indicates multi-key command
-            e0_code <= '1';              --set multi-code command flag
-            state <= ready;              --return to ready state to await next ps2 code
-          else                         --code is the last ps2 code in the make/break code
-            ascii(7) <= '1';             --set internal ascii value to unsupported code (for verification)
-            state <= translate;          --proceed to translate state
+          if(ps2_code = x"f0") then    --el código indica que el siguiente comando es break
+            break <= '1';
+            state <= ready;              --Regrese al estado ready para esperar el próximo código ps2
+          elsif(ps2_code = x"e0") then --el código indica un comando de varias teclas
+            e0_code <= '1';              --establecer bandera de comando de código múltiple
+            state <= ready;              --Regrese al estado ready para esperar el próximo código ps2
+          else                         --código es el último código de ps2 en el código de creación / interrupción
+            ascii(7) <= '1';             --establecer el valor ascii interno en un código no admitido (para verificación)
+            state <= traducir;          --proceder a traducir el estado
           end if;
 
-        --translate state: translate ps2 code to ascii value
-        when translate =>
+        --estado traducir: traducir código ps2 a valor ascii
+        when traducir =>
           break <= '0';    --reset break flag
           e0_code <= '0';  --reset multi-code command flag
 
-          --handle codes for control, shift, and caps lock
+          --manejar códigos para control, cambio y bloqueo de mayúsculas
           case ps2_code is
-            when x"58" =>                   --caps lock code
-              if(break = '0') then            --if make command
-                caps_lock <= not caps_lock;     --toggle caps lock
+            when x"58" =>                   --CAPS LOCK
+              if(break = '0') then            --Si se hace el comando
+                caps_lock <= not caps_lock;     --cambia a mayus
               end if;
-            when x"14" =>                   --code for the control keys
-              if(e0_code = '1') then          --code for right control
-                control_r <= not break;         --update right control flag
-              else                            --code for left control
-                control_l <= not break;         --update left control flag
+            when x"14" =>                   --código para las teclas de control
+              if(e0_code = '1') then          --código para el control correcto
+                control_r <= not break;         --actualizar la bandera de control derecho
+              else                            --código para control izquierdo
+                control_l <= not break;         --actualizar la bandera de control izquierdo
               end if;
-            when x"12" =>                   --left shift code
-              shift_l <= not break;           --update left shift flag
-            when x"59" =>                   --right shift code
-              shift_r <= not break;           --update right shift flag
+            when x"12" =>                   --SHIFT izq
+              shift_l <= not break;
+            when x"59" =>                   --SHIFT der
+              shift_r <= not break;
             when others => null;
           end case;
 
-          --translate control codes (these do not depend on shift or caps lock)
+          --traducir códigos de control (estos no dependen del cambio o bloqueo de mayúsculas)
           if(control_l = '1' or control_r = '1') then
             case ps2_code is
               when x"1e" => ascii <= x"00"; --^@  nul
@@ -141,7 +152,7 @@ begin
             end case;
           else --if control keys are not pressed
 
-            --translate characters that do not depend on shift, or caps lock
+            --traducir caracteres que no dependen de mayúsculas o mayúsculas
             case ps2_code is
               when x"29" => ascii <= x"20"; --space
               when x"66" => ascii <= x"08"; --backspace (bs control code)
@@ -155,9 +166,9 @@ begin
               when others => null;
             end case;
 
-            --translate letters (these depend on both shift and caps lock)
+            --traducir letras (dependen de mayúsculas y mayúsculas)
             if((shift_r = '0' and shift_l = '0' and caps_lock = '0') or
-               ((shift_r = '1' or shift_l = '1') and caps_lock = '1')) then  --letter is lowercase
+               ((shift_r = '1' or shift_l = '1') and caps_lock = '1')) then  --la letra es minúscula
               case ps2_code is
                 when x"1c" => ascii <= x"61"; --a
 										dis7 <= "0001000";
@@ -188,40 +199,40 @@ begin
                 when x"1a" => ascii <= x"7a"; --z
                 when others => null;
               end case;
-            else                                     --letter is uppercase
+            else                                     --la letra es mayúscula
               case ps2_code is
-                when x"1c" => ascii <= x"41"; --a
-                when x"32" => ascii <= x"42"; --b
-                when x"21" => ascii <= x"43"; --c
-                when x"23" => ascii <= x"44"; --d
-                when x"24" => ascii <= x"45"; --e
-                when x"2b" => ascii <= x"46"; --f
-                when x"34" => ascii <= x"47"; --g
-                when x"33" => ascii <= x"48"; --h
-                when x"43" => ascii <= x"49"; --i
-                when x"3b" => ascii <= x"4a"; --j
-                when x"42" => ascii <= x"4b"; --k
-                when x"4b" => ascii <= x"4c"; --l
-                when x"3a" => ascii <= x"4d"; --m
-                when x"31" => ascii <= x"4e"; --n
-                when x"44" => ascii <= x"4f"; --o
-                when x"4d" => ascii <= x"50"; --p
-                when x"15" => ascii <= x"51"; --q
-                when x"2d" => ascii <= x"52"; --r
-                when x"1b" => ascii <= x"53"; --s
-                when x"2c" => ascii <= x"54"; --t
-                when x"3c" => ascii <= x"55"; --u
-                when x"2a" => ascii <= x"56"; --v
-                when x"1d" => ascii <= x"57"; --w
-                when x"22" => ascii <= x"58"; --x
-                when x"35" => ascii <= x"59"; --y
-                when x"1a" => ascii <= x"5a"; --z
+                when x"1c" => ascii <= x"41"; --A
+                when x"32" => ascii <= x"42"; --B
+                when x"21" => ascii <= x"43"; --C
+                when x"23" => ascii <= x"44"; --D
+                when x"24" => ascii <= x"45"; --E
+                when x"2b" => ascii <= x"46"; --F
+                when x"34" => ascii <= x"47"; --G
+                when x"33" => ascii <= x"48"; --H
+                when x"43" => ascii <= x"49"; --I
+                when x"3b" => ascii <= x"4a"; --J
+                when x"42" => ascii <= x"4b"; --K
+                when x"4b" => ascii <= x"4c"; --L
+                when x"3a" => ascii <= x"4d"; --M
+                when x"31" => ascii <= x"4e"; --N
+                when x"44" => ascii <= x"4f"; --O
+                when x"4d" => ascii <= x"50"; --P
+                when x"15" => ascii <= x"51"; --Q
+                when x"2d" => ascii <= x"52"; --R
+                when x"1b" => ascii <= x"53"; --S
+                when x"2c" => ascii <= x"54"; --T
+                when x"3c" => ascii <= x"55"; --U
+                when x"2a" => ascii <= x"56"; --V
+                when x"1d" => ascii <= x"57"; --W
+                when x"22" => ascii <= x"58"; --X
+                when x"35" => ascii <= x"59"; --Y
+                when x"1a" => ascii <= x"5a"; --Z
                 when others => null;
               end case;
             end if;
 
-            --translate numbers and symbols (these depend on shift but not caps lock)
-            if(shift_l = '1' or shift_r = '1') then  --key's secondary character is desired
+            --traducir números y símbolos (estos dependen del turno pero no del bloqueo de mayúsculas)
+            if(shift_l = '1' or shift_r = '1') then  --se desea el carácter secundario de la clave
               case ps2_code is
                 when x"16" => ascii <= x"21"; --!
                 when x"52" => ascii <= x"22"; --"
@@ -246,7 +257,7 @@ begin
                 when x"0e" => ascii <= x"7e"; --~
                 when others => null;
               end case;
-            else                                     --key's primary character is desired
+            else                                     --se desea el carácter principal de la clave
               case ps2_code is
                 when x"45" => ascii <= x"30"; --0
                 when x"16" => ascii <= x"31"; --1
@@ -275,19 +286,23 @@ begin
 
           end if;
 
-          if(break = '0') then  --the code is a make
-            state <= output;      --proceed to output state
-          else                  --code is a break
-            state <= ready;       --return to ready state to await next ps2 code
+          if(break = '0') then  --el código es brak
+            state <= output;      --pasar al estado de salida
+          else                  --código es break
+            state <= ready;       --Regrese al estado listo para esperar el próximo código ps2
           end if;
 
-        --output state: verify the code is valid and output the ascii value
+        --estado output: verificar que el código sea válido y generar el valor ascii
         when output =>
-          if(ascii(7) = '0') then            --the ps2 code has an ascii output
-            ascii_new <= '1';                  --set flag indicating new ascii output
-            ascii_code <= ascii(6 downto 0);   --output the ascii value
+          if(ascii(7) = '0') then            --el código ps2 tiene una salida ascii
+            ascii_new <= '1';                  --establecer bandera que
+                                               --indica(si se esta pusando una
+                                               --tecla)
+                                               --nueva salida ascii
+            ascii_code <= ascii(6 downto 0);   --generar el valor ascii(binario)
           end if;
-          state <= ready;                    --return to ready state to await next ps2 code
+          state <= ready;                    --Regresa al estado listo para
+                                             --esperar el próximo código ps2
 
       end case;
     end if;
