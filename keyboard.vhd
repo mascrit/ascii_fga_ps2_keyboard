@@ -10,7 +10,8 @@ entity keyboard is
     ps2_clk    : in  std_logic;                     --clock signal from ps2 keyboard
     ps2_data   : in  std_logic;                     --data signal from ps2 keyboard
     ascii_new  : out std_logic;                     --output flag indicating new ascii value
-    ascii_code : out std_logic_vector(6 downto 0)); --ascii value
+    ascii_code : out std_logic_vector(6 downto 0);
+	 ascii_display :out std_logic_vector(0 to 6)); --ascii value
 end keyboard;
 
 architecture behavior of keyboard is
@@ -30,7 +31,7 @@ architecture behavior of keyboard is
                                                                     --la
                                                                     --bandera
                                                                     --ps2_code_newenel reloj anterior
-  signal break             : std_logic := '0';                      --'1' para código de interrupción, '0' para código de marca
+  signal break             : std_logic := '0';                      --'1' para código de interrupción, '0' para código break
   signal e0_code           : std_logic := '0';                      --'1' para comandos de código múltiple, '0' para comandos de código único
   signal caps_lock         : std_logic := '0';                      --'1' si el bloqueo de mayúsculas está activo, '0' si el bloqueo de mayúsculas está inactivo
   signal control_r         : std_logic := '0';                      --'1' si se mantiene presionada la tecla de control derecha, de lo contrario '0'
@@ -38,8 +39,7 @@ architecture behavior of keyboard is
   signal shift_r           : std_logic := '0';                      --'1' si se mantiene presionada la tecla de desplazamiento a la derecha, en caso contrario '0'
   signal shift_l           : std_logic := '0';                      --'1' si se mantiene presionada la tecla de desplazamiento a la izquierda, en caso contrario '0'
   signal ascii             : std_logic_vector(7 downto 0) := x"ff"; --valor interno de la traducción ascii
-  signal dis7					: std_logic_vector(6 to 0);
-  
+  signal asciid            : std_logic_vector(0 to 7) := x"ff";
   --declarar componente de interfaz de teclado ps2
   component ps2_keyboard is
     generic(
@@ -52,6 +52,41 @@ architecture behavior of keyboard is
       ps2_code_new : out std_logic;                     --flag that new ps/2 code is available on ps2_code bus
       ps2_code     : out std_logic_vector(7 downto 0)); --code received from ps/2
   end component;
+  
+  function letra(letra:string) return std_logic_vector is
+	variable hex:std_logic_vector(0 to 7);
+  begin
+	case letra is
+	  when "a" => hex:="00010000";
+	  when "b" => hex:="11000000";
+	  when "c" => hex:="01100010";
+	  when "d" => hex:="10000100";
+	  when "e" => hex:="00100000";
+	  when "f" => hex:="01110000";
+	  when "g" => hex:="00001000";
+	  when "h" => hex:="11010000";
+	  when "i" => hex:="10011111";
+	  when "j" => hex:="10001110";
+	  when "k" => hex:="11110000";
+	  when "l" => hex:="11110010";
+	  when "m" => hex:="11010100";
+	  when "n" => hex:="11010100";
+	  when "o" => hex:="00000010";
+	  when "p" => hex:="00110000";
+	  when "q" => hex:="00011000";
+	  when "r" => hex:="11110100";
+	  when "s" => hex:="01001000";
+	  when "t" => hex:="11100000";
+	  when "u" => hex:="11000110";
+	  when "v" => hex:="11000110";
+	  when "w" => hex:="11000110";
+	  when "x" => hex:="11000110";
+	  when "y" => hex:="10001010";
+	  when "z" => hex:="00100100";
+	  when others => null;
+	end case;
+	return (hex);
+  end letra;
 
 begin
 
@@ -171,31 +206,57 @@ begin
                ((shift_r = '1' or shift_l = '1') and caps_lock = '1')) then  --la letra es minúscula
               case ps2_code is
                 when x"1c" => ascii <= x"61"; --a
+										asciid <= letra("a");
                 when x"32" => ascii <= x"62"; --b
+					 					asciid <= letra("b");
                 when x"21" => ascii <= x"63"; --c
+					 					asciid <= letra("c");
                 when x"23" => ascii <= x"64"; --d
+					 					asciid <= letra("d");
                 when x"24" => ascii <= x"65"; --e
+					 					asciid <= letra("e");
                 when x"2b" => ascii <= x"66"; --f
+					 					asciid <= letra("f");
                 when x"34" => ascii <= x"67"; --g
+					 					asciid <= letra("g");
                 when x"33" => ascii <= x"68"; --h
+					 					asciid <= letra("h");
                 when x"43" => ascii <= x"69"; --i
+					 					asciid <= letra("i");
                 when x"3b" => ascii <= x"6a"; --j
+					 					asciid <= letra("j");
                 when x"42" => ascii <= x"6b"; --k
+					 					asciid <= letra("k");
                 when x"4b" => ascii <= x"6c"; --l
+					 					asciid <= letra("l");
                 when x"3a" => ascii <= x"6d"; --m
+					 					asciid <= letra("m");
                 when x"31" => ascii <= x"6e"; --n
+					 					asciid <= letra("n");
                 when x"44" => ascii <= x"6f"; --o
+					 					asciid <= letra("o");
                 when x"4d" => ascii <= x"70"; --p
+					 					asciid <= letra("p");
                 when x"15" => ascii <= x"71"; --q
+					 					asciid <= letra("q");
                 when x"2d" => ascii <= x"72"; --r
+					 					asciid <= letra("r");
                 when x"1b" => ascii <= x"73"; --s
+					 					asciid <= letra("s");
                 when x"2c" => ascii <= x"74"; --t
+					 					asciid <= letra("t");
                 when x"3c" => ascii <= x"75"; --u
+					 					asciid <= letra("u");
                 when x"2a" => ascii <= x"76"; --v
+					 					asciid <= letra("v");
                 when x"1d" => ascii <= x"77"; --w
+					 					asciid <= letra("w");
                 when x"22" => ascii <= x"78"; --x
+					 					asciid <= letra("x");
                 when x"35" => ascii <= x"79"; --y
+					 					asciid <= letra("y");
                 when x"1a" => ascii <= x"7a"; --z
+					 					asciid <= letra("z");
                 when others => null;
               end case;
             else                                     --la letra es mayúscula
@@ -299,6 +360,7 @@ begin
                                                --tecla)
                                                --nueva salida ascii
             ascii_code <= ascii(6 downto 0);   --generar el valor ascii(binario)
+				ascii_display<= asciid (0 to 6);
           end if;
           state <= ready;                    --Regresa al estado listo para
                                              --esperar el próximo código ps2
