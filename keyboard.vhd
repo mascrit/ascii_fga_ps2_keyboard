@@ -171,7 +171,6 @@ begin
                ((shift_r = '1' or shift_l = '1') and caps_lock = '1')) then  --la letra es minúscula
               case ps2_code is
                 when x"1c" => ascii <= x"61"; --a
-										dis7 <= "0001000";
                 when x"32" => ascii <= x"62"; --b
                 when x"21" => ascii <= x"63"; --c
                 when x"23" => ascii <= x"64"; --d
