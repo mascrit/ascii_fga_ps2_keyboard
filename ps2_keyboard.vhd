@@ -3,41 +3,44 @@ use ieee.std_logic_1164.all;
 
 entity ps2_keyboard is
   generic(
-    clk_freq              : integer := 50_000_000; --system clock frequency in hz
-    debounce_counter_size : integer := 8);         --set such that (2^size)/clk_freq = 5us (size = 8 for 50mhz)
+    clk_freq              : integer := 50_000_000;
+    debounce_counter_size : integer := 8);         --se configura a (2^size)/clk_freq = 5us (size = 8
+                                                   --para  50mhz)
   port(
-    clk          : in  std_logic;                     --system clock
-    ps2_clk      : in  std_logic;                     --clock signal from ps/2 keyboard
-    ps2_data     : in  std_logic;                     --data signal from ps/2 keyboard
-    ps2_code_new : out std_logic;                     --flag that new ps/2 code is available on ps2_code bus
-    ps2_code     : out std_logic_vector(7 downto 0)); --code received from ps/2
+    clk          : in  std_logic;                     --reloj
+    ps2_clk      : in  std_logic;                     --señal del relog para
+                                                      --el teclado ps2
+    ps2_data     : in  std_logic;                     --señal de datos del teclado ps2
+    ps2_code_new : out std_logic;                     --marcar que el nuevo código
+                                                      --ps2 está disponible en el bus ps2_code
+    ps2_code     : out std_logic_vector(7 downto 0)); --código recibido de ps2
 end ps2_keyboard;
 
 architecture logic of ps2_keyboard is
-  signal sync_ffs     : std_logic_vector(1 downto 0);       --synchronizer flip-flops for ps/2 signals
-  signal ps2_clk_int  : std_logic;                          --debounced clock signal from ps/2 keyboard
-  signal ps2_data_int : std_logic;                          --debounced data signal from ps/2 keyboard
-  signal ps2_word     : std_logic_vector(10 downto 0);      --stores the ps2 data word
-  signal error        : std_logic;                          --validate parity, start, and stop bits
-  signal count_idle   : integer range 0 to clk_freq/18_000; --counter to determine ps/2 is idle
+  signal sync_ffs     : std_logic_vector(1 downto 0);       --flip-flops sincronizadores para señales ps2
+  signal ps2_clk_int  : std_logic;                          --señal de reloj sin rebote del teclado ps2
+  signal ps2_data_int : std_logic;                          --señal de datos sin rebote del teclado ps2
+  signal ps2_word     : std_logic_vector(10 downto 0);      --almacena la palabra de datos de ps2
+  signal error        : std_logic;                          --validar bits de paridad, inicio y parada
+  signal count_idle   : integer range 0 to clk_freq/18_000; --Contador para determinar ps2 está inactivo(idle)
 
-  --declare debounce component for debouncing ps2 input signals
+  --declarar componente antirrebote para antirrebote de señales de entrada ps2
   component debounce is
     generic(
-      counter_size : integer); --debounce period (in seconds) = 2^counter_size/(clk freq in hz)
+      counter_size : integer); --período de rebote (en segundos) = 2^counter_size/(frecuencia de clk en Hz)
     port(
-      clk    : in  std_logic;  --input clock
-      button : in  std_logic;  --input signal to be debounced
-      result : out std_logic); --debounced signal
+      clk    : in  std_logic;  --reloj de entrada
+      button : in  std_logic;  --señal de entrada que debe eliminarse
+      result : out std_logic); --señal antirrebote
   end component;
 begin
 
-  --synchronizer flip-flops
+  --flip-flops sincronizadores
   process(clk)
   begin
-    if(clk'event and clk = '1') then  --rising edge of system clock
-      sync_ffs(0) <= ps2_clk;           --synchronize ps/2 clock signal
-      sync_ffs(1) <= ps2_data;          --synchronize ps/2 data signal
+    if(clk'event and clk = '1') then  --flanco ascendente del reloj del sistema
+      sync_ffs(0) <= ps2_clk;           --sincronizar la señal del reloj ps2
+      sync_ffs(1) <= ps2_data;          --sincronizar la señal de datos ps2
     end if;
   end process;
 
